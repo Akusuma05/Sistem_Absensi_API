@@ -20,11 +20,11 @@ pip install virtualenv
 
 py -m venv path/to/venv
 
-cd my_venv\Scripts
+cd path\to\venv\Scripts
 
 Set-ExecutionPolicy Unrestricted -Scope Process
 
-activate.bat
+.\activate
 
 pip install opencv-python
 
