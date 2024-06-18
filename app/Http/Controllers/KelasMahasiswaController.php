@@ -38,23 +38,6 @@ class KelasMahasiswaController extends Controller
         $kelas_Mahasiswa->Mahasiswa_Id = $request->Mahasiswa_Id;
         $kelas_Mahasiswa->save();
 
-        // $Mahasiswa_Id = is_array($request->Mahasiswa_Id) ? $request->Mahasiswa_Id : [$request->Mahasiswa_Id];
-        // $mahasiswa = Mahasiswa::whereIn('Mahasiswa_Id', $Mahasiswa_Id)->select('Mahasiswa_Foto')->get();
-
-        // $directoryPath = "/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/storage/app/public/faces/38";
-        // // if (!Storage::exists($directoryPath)) {
-        //     Storage::makeDirectory(public_path"/faces/38");
-        // // }
-
-        // // Copy the file to the new directory
-        // foreach ($mahasiswa as $mhs) {
-        //     $oldPath = "/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/storage/app/public/faces/Angelo.JPG";
-        //     $newPath = $directoryPath . '/' . $mhs->Mahasiswa_Foto;
-        //     if (Storage::exists($oldPath)) {
-        //         Storage::copy($oldPath, $newPath);
-        //     }
-        // }
-
         return response()->json([
             "message" => "KelasMahasiswa Added."
         ], 201);

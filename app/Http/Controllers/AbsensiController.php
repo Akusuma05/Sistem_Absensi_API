@@ -70,8 +70,8 @@ class AbsensiController extends Controller
         // $arg2 = "/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/storage/app/public/faces/$request->Kelas_Id";
 
         $process = new Process([
-            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/path/to/venv/bin/python3',  # Ganti dengan path ke interpreter Python virtual environment
-            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/app/Python/main.py',           # Ganti dengan path ke script Python (main.py)
+            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/path/to/venv/bin/python',  # Ganti dengan path ke interpreter Python virtual environment
+            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/app/Python/Main.py',           # Ganti dengan path ke script Python (main.py)
             $arg1,
             // $arg2,
             $imageName,
@@ -86,7 +86,7 @@ class AbsensiController extends Controller
         // Mendapatkan hasil pencocokan wajah dari output script Python
         $output = $process->getOutput();
         $knownFaceNames = [];
-        preg_match_all('/Match found for (.+?) vs\. known face (.+?)\.JPG/', $output, $matches, PREG_SET_ORDER);
+        preg_match_all('/Match found for (.+?) vs\. known face (.+?)\.jpg/', $output, $matches, PREG_SET_ORDER);
         foreach ($matches as $match) {
             $knownFaceNames[] = $match[2];  # Ekstrak nama file wajah yang dikenal
         }
@@ -269,56 +269,9 @@ class AbsensiController extends Controller
         $writer->save(storage_path('app/' . $filename));
 
         // Mengembalikan URL file spreadsheet untuk diunduh
-        return response()->download(storage_path('app/' . $filename));
-    }
-
-
-    public function detectMahasiswa(Request $request)
-    {
-        //   """ Mendeteksi wajah mahasiswa dari foto yang diunggah.
-
-        //   Args:
-        //       request (Request): Objek request yang berisi data yang dikirimkan, termasuk foto mahasiswa.
-
-        //   Returns:
-        //       JsonResponse: Respon JSON berisi status deteksi dan nama wajah yang terdeteksi (jika ada).
-        //   """
-
-        // Validasi input foto mahasiswa
-        $validator = Validator::make($request->all(), [
-            'Mahasiswa_Foto' => 'required|image|mimes:jpeg,png,jpg,JPG',
+        return response()->download(storage_path('app/' . $filename), $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => $validator->messages(),
-            ], 422);
-        }
-
-        // Simpan foto mahasiswa
-        $imageName = 'detect.' . $request->file('Mahasiswa_Foto')->getClientOriginalExtension();
-        $request->file('Mahasiswa_Foto')->storeAs('public/detect', $imageName);
-
-        $process = new Process(['/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/path/to/venv/bin/python3', '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/Sistem_Presensi_API/app/Python/main.py']);
-
-        if (!$process->isSuccessful()) {
-            throw new ProcessFailedException($process);
-        }
-
-        // Ekstrak hasil deteksi wajah dari output script Python
-        $output = $process->getOutput();
-        $knownFaces = [];
-        preg_match_all('/Match found for (.+?) vs\. known face (.+?)\.JPG/', $output, $matches, PREG_SET_ORDER);
-        foreach ($matches as $match) {
-            $knownFaces[] = $match[2];  // Ekstrak nama file wajah yang dikenal
-        }
-
-        // Respon deteksi wajah berhasil
-        return response()->json([
-            'message' => 'Wajah terdeteksi',
-            'Detected Faces' => $knownFaces,
-        ], 202);
     }
 
     public function getAbsensibyId(string $kelasId, string $mahasiswaId)

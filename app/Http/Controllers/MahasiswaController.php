@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Mahasiswa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 use Validator;
 
 class MahasiswaController extends Controller
@@ -39,22 +41,46 @@ class MahasiswaController extends Controller
             'Mahasiswa_Foto' => 'required|image|mimes:jpeg,png,jpg,JPG',
         ]);
 
+        // Simpan foto mahasiswa
+        $imageName = 'detect.' . $request->file('Mahasiswa_Foto')->getClientOriginalExtension();
+        $request->file('Mahasiswa_Foto')->storeAs('public/detect', $imageName);
+        $arg1 = "/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/storage/app/public/detect/$imageName";
+        $arg2 = $request->Mahasiswa_Nama;
+
+        $process = new Process([
+            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/path/to/venv/bin/python',
+            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/app/Python/AddMahasiswa.py',
+            $arg1,
+            $arg2,
+            $imageName,
+        ]);
+
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        // Ekstrak hasil deteksi wajah dari output script Python
+        $output = $process->getOutput();
+
         if ($validator->fails()) {
             return response()->json([
                 'status' => 422,
                 'message' => $validator->messages(),
             ], 422);
         } else {
-            $imageName = $request->Mahasiswa_Nama . '.' . $request->file('Mahasiswa_Foto')->getClientOriginalExtension();
+            $imageName = $request->Mahasiswa_Nama . '.jpg';
 
-            $request->file('Mahasiswa_Foto')->storeAs('public/faces', $imageName);
+            // $request->file('Mahasiswa_Foto')->storeAs('public/faces', $imageName);
 
             $mahasiswa->Mahasiswa_Foto = $imageName;
             $mahasiswa->save();
 
             return response()->json([
                 "message" => "Mahasiswa Added.",
-                "image" => $imageName
+                "image" => $imageName,
+                "Python" => $output
             ], 201);
         }
     }
@@ -99,21 +125,42 @@ class MahasiswaController extends Controller
                 // Handle image update if present in the request
                 if ($request->hasFile('Mahasiswa_Foto')) {
                     // Delete the old image
-                    Storage::disk('public')->delete('upload/'.$mahasiswa->Mahasiswa_Foto);
+                    Storage::disk('public')->delete('faces/' . $mahasiswa->Mahasiswa_Foto);
 
                     $imageName = $request->Mahasiswa_Nama . '.' . $request->file('Mahasiswa_Foto')->getClientOriginalExtension();
 
-                    // Option 1: Store the image in the public disk (accessible from web)
-                    $request->file('Mahasiswa_Foto')->storeAs('public/upload', $imageName);
-
                     $mahasiswa->Mahasiswa_Foto = $imageName;
+
+                    // Simpan foto mahasiswa
+                    $imageName = 'detect.' . $request->file('Mahasiswa_Foto')->getClientOriginalExtension();
+                    $request->file('Mahasiswa_Foto')->storeAs('public/detect', $imageName);
+                    $arg1 = "/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/storage/app/public/detect/$imageName";
+                    $arg2 = $request->Mahasiswa_Nama;
+
+                    $process = new Process([
+                        '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/path/to/venv/bin/python',  # Ganti dengan path ke interpreter Python virtual environment
+                        '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/app/Python/EditMahasiswa.py',           # Ganti dengan path ke script Python (main.py)
+                        $arg1,
+                        $arg2,
+                        $imageName,
+                    ]);
+
+                    $process->run();
+
+                    if (!$process->isSuccessful()) {
+                        throw new ProcessFailedException($process);
+                    }
+
+                    // Ekstrak hasil deteksi wajah dari output script Python
+                    $output = $process->getOutput();
                 }
 
                 $mahasiswa->save();
 
                 return response()->json([
                     'status' => 200,
-                    'message' => 'Mahasiswa record updated.'
+                    'message' => 'Mahasiswa record updated.',
+                    "Python" => $output
                 ], 200);
             } else {
                 return response()->json([
@@ -124,9 +171,6 @@ class MahasiswaController extends Controller
         }
     }
 
-
-
-
     /**
      * Remove the specified resource from storage.
      */
@@ -135,17 +179,95 @@ class MahasiswaController extends Controller
         if (Mahasiswa::where('Mahasiswa_Id', $id)->exists()) {
             $mahasiswa = Mahasiswa::find($id);
 
-            Storage::disk('public')->delete('upload/'.$mahasiswa->Mahasiswa_Foto);
+            Storage::disk('public')->delete('faces/' . $mahasiswa->Mahasiswa_Foto);
+
+            // Simpan foto mahasiswa
+            $arg1 = $mahasiswa->Mahasiswa_Nama;
+
+            $process = new Process([
+                '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/path/to/venv/bin/python',  # Ganti dengan path ke interpreter Python virtual environment
+                '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/app/Python/DeleteMahasiswa.py',           # Ganti dengan path ke script Python (main.py)
+                $arg1,
+            ]);
+
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+
+            // Ekstrak hasil deteksi wajah dari output script Python
+            $output = $process->getOutput();
 
             $mahasiswa->delete();
 
             return response()->json([
-                "message" => "Mahasiswa deleted."
+                "message" => "Mahasiswa deleted.",
+                "Python" => $output
             ], 202);
         } else {
             return response()->json([
                 "message" => "Mahasiswa not found."
             ], 404);
         }
+    }
+
+    public function detectMahasiswa(Request $request)
+    {
+        //   """ Mendeteksi wajah mahasiswa dari foto yang diunggah.
+
+        //   Args:
+        //       request (Request): Objek request yang berisi data yang dikirimkan, termasuk foto mahasiswa.
+
+        //   Returns:
+        //       JsonResponse: Respon JSON berisi status deteksi dan nama wajah yang terdeteksi (jika ada).
+        //   """
+
+        // Validasi input foto mahasiswa
+        $validator = Validator::make($request->all(), [
+            'Mahasiswa_Foto' => 'required|image|mimes:jpeg,png,jpg,JPG',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 422,
+                'message' => $validator->messages(),
+            ], 422);
+        }
+
+        // Simpan foto mahasiswa
+        $imageName = 'detect.' . $request->file('Mahasiswa_Foto')->getClientOriginalExtension();
+        $request->file('Mahasiswa_Foto')->storeAs('public/detect', $imageName);
+        $arg1 = "/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/storage/app/public/detect/$imageName";
+        // $arg2 = "/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/storage/app/public/faces/$request->Kelas_Id";
+
+        $process = new Process([
+            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/path/to/venv/bin/python',  # Ganti dengan path ke interpreter Python virtual environment
+            '/Users/angelokusuma/Documents/Kuliah/Semester 8/Sistem Presensi/sistemabsensi/app/Python/main.py',           # Ganti dengan path ke script Python (main.py)
+            $arg1,
+            // $arg2,
+            $imageName,
+        ]);
+
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        // Ekstrak hasil deteksi wajah dari output script Python
+        $output = $process->getOutput();
+        $knownFaces = [];
+        preg_match_all('/Match found for (.+?) vs\. known face (.+?)\.jpg/', $output, $matches, PREG_SET_ORDER);
+        foreach ($matches as $match) {
+            $knownFaces[] = $match[2];  // Ekstrak nama file wajah yang dikenal
+        }
+
+        // Respon deteksi wajah berhasil
+        return response()->json([
+            'message' => 'Wajah terdeteksi',
+            'Detected Faces' => $knownFaces,
+            'python' => $output
+        ], 202);
     }
 }

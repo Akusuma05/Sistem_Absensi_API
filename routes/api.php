@@ -9,6 +9,10 @@ use App\Http\Controllers\MahasiswaController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Response;
+
+use Illuminate\Support\Facades\Storage;
 
 // Route::get('/user', function (Request $request) {
 //     return $request->user();
@@ -18,7 +22,7 @@ Route::post('register', [UserController::class, 'register']);
 Route::post('login', [UserController::class, 'login']);
 
 Route::get('Absensi/Export', [AbsensiController::class, 'exportToExcel']);
-Route::post('Absensi/Detect', [AbsensiController::class, 'detectMahasiswa']);
+Route::post('Absensi/Detect', [MahasiswaController::class, 'detectMahasiswa']);
 
 Route::middleware('auth:api')->group(function () {
 });
@@ -32,3 +36,12 @@ Route::resource('Kelas', KelasController::class);
 Route::get('kelas-mahasiswa/{kelasId}/mahasiswa', [KelasMahasiswaController::class, 'getMahasiswaByKelasId']);
 Route::get('kelas-mahasiswa/{kelasId}', [KelasMahasiswaController::class, 'getKelasMahasiswaByKelasId']);
 Route::get('Absensi/{kelasId}/{mahasiswaId}', [AbsensiController::class, 'getAbsensibyId']);
+Route::get('/images/{filename}', function ($filename) {
+  $imagePath = public_path("storage/faces/$filename");
+
+  if (!File::exists($imagePath)) {
+    return abort(404);
+  }
+
+  return response()->file($imagePath);
+});
